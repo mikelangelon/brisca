@@ -60,7 +60,7 @@ public class GameScreen extends ScreenAdapter {
         guiCam = new OrthographicCamera(App.WIDTH, App.HEIGHT);
         guiCam.position.set(App.WIDTH / 2, App.HEIGHT / 2, 0);
 
-        players = getPlayers();
+        players = GameUtils.getPlayers();
 
         triunfalCard = deck.takeCard();
         for (int i = 0; i < 3; i++) {
@@ -107,14 +107,14 @@ public class GameScreen extends ScreenAdapter {
         updateNotificationLabel("You can start the round");
     }
 
-    private Player nextTurn(){
+    private Player nextTurn() {
         boolean found = false;
         for (Player player : players) {
-            if (found){
+            if (found) {
                 return player;
             }
-            if (turn == player){
-                found= true;
+            if (turn == player) {
+                found = true;
             }
         }
         roundEnded = true;
@@ -129,7 +129,7 @@ public class GameScreen extends ScreenAdapter {
 
     private void update() {
         checkEndRound();
-        if (roundEnded){
+        if (roundEnded) {
             return;
         }
         if (Gdx.input.justTouched() && turn == players[0]) {
@@ -149,57 +149,62 @@ public class GameScreen extends ScreenAdapter {
         logicAI();
     }
 
-    private void logicAI(){
-        if(turn != players[0] && !thinking){
+    private void logicAI() {
+        if (turn != players[0] && !thinking) {
             thinking = true;
             Timer.schedule(new Timer.Task() {
                 @Override
                 public void run() {
                     //IA Logic taking a card
-                    int card = getRandomNumberInRange(0,2);
+                    int card = Utils.getRandomNumberInRange(0, 2);
                     selectedCards.add(turn.getCards().get(card));
                     turn = nextTurn();
                     thinking = false;
                 }
-            }, getRandomNumberInRange(1,10));
+            }, Utils.getRandomNumberInRange(1, 10));
         }
     }
 
-    private void checkEndRound(){
-        if (!roundEnded || thinking){
+
+    private void calculateRound() {
+        Card winner = selectedCards.get(0);
+        int points = 0;
+        for (Player player : players) {
+            for (Card card : selectedCards) {
+                if (!card.getOwner().equals(player)) {
+                    continue;
+                }
+                if (winner.getValue() < card.getValue()) {
+                    winner = card;
+                }
+                System.out.println(card.getOwner().getName() + "Card " + card.getValue());
+                points += card.getValue();
+                player.getCards().remove(card);
+                player.addCard(deck.takeCard());
+            }
+        }
+        notificationLabel.setText(winner.getOwner().getName() + " wins the round");
+        notificationLabel.setPosition(App.WIDTH / 2 - notificationLabel.getWidth() / 2, App.HEIGHT / 2 - 100);
+        updateNotificationLabel(winner.getOwner().getName() + " wins the round!");
+        System.out.println("Winner" + winner.getOwner().getName() + " " + points);
+        winner.getOwner().addPoints(points);
+        System.out.println("Remaining cards " + deck.getCounter());
+        selectedCards.clear();
+        roundEnded = false;
+        thinking = false;
+    }
+
+    private void checkEndRound() {
+        if (!roundEnded || thinking) {
             return;
         }
         thinking = true;
         Timer.schedule(new Timer.Task() {
             @Override
             public void run() {
-                Card winner = selectedCards.get(0);
-                int points= 0;
-                for (Player player : players) {
-                    for (Card card : selectedCards) {
-                        if (!card.getOwner().equals(player)){
-                            continue;
-                        }
-                        if  (winner.getValue() < card.getValue()){
-                            winner = card;
-                        }
-                        System.out.println(card.getOwner().getName() + "Card " + card.getValue());
-                        points += card.getValue();
-                        player.getCards().remove(card);
-                        player.addCard(deck.takeCard());
-                    }
-                }
-                notificationLabel.setText(winner.getOwner().getName() + " wins the round");
-                notificationLabel.setPosition(App.WIDTH/2 - notificationLabel.getWidth()/2, App.HEIGHT/2- 100);
-                updateNotificationLabel(winner.getOwner().getName() + " wins the round!");
-                System.out.println("Winner"+ winner.getOwner().getName()+ " " + points);
-                winner.getOwner().addPoints(points);
-                System.out.println("Remaining cards "+ deck.getCounter());
-                selectedCards.clear();
-                roundEnded = false;
-                thinking = false;
+                calculateRound();
             }
-        }, getRandomNumberInRange(1,10));
+        }, Utils.getRandomNumberInRange(1, 10));
     }
 
     private void draw() {
@@ -242,15 +247,6 @@ public class GameScreen extends ScreenAdapter {
 
         stage.draw();
         stage2.draw();
-    }
-
-    private Player[] getPlayers() {
-        Player[] players = new Player[4];
-        players[0] = new Player("Prota", true);
-        players[1] = new Player("Juanito Killer", false);
-        players[2] = new Player("Rodrigo", false);
-        players[3] = new Player("Marmota", false);
-        return players;
     }
 
     private Sprite getSpriteSouth(Card card, float x) {
@@ -310,22 +306,13 @@ public class GameScreen extends ScreenAdapter {
         return false;
     }
 
-    private static int getRandomNumberInRange(int min, int max) {
 
-        if (min >= max) {
-            throw new IllegalArgumentException("max must be greater than min");
-        }
-
-        Random r = new Random();
-        return r.nextInt((max - min) + 1) + min;
-    }
-
-    private void updateNotificationLabel(String text){
+    private void updateNotificationLabel(String text) {
         notificationLabel.setText(text);
-        notificationLabel.setPosition(App.WIDTH/2 - getLabelWidth(text)/2, App.HEIGHT/2+ 120);
+        notificationLabel.setPosition(App.WIDTH / 2 - getLabelWidth(text) / 2, App.HEIGHT / 2 + 120);
     }
 
-    private float getLabelWidth(String text){
+    private float getLabelWidth(String text) {
         BitmapFont font = new BitmapFont();
         font.getData().setScale(2);
         Label label = new Label(text, new Label.LabelStyle(font, Color.BLUE));
