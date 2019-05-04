@@ -18,9 +18,13 @@ import com.badlogic.gdx.utils.Timer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.cartamasalta.game.domain.Card;
 import com.cartamasalta.game.domain.Deck;
+import com.cartamasalta.game.domain.Location;
 import com.cartamasalta.game.domain.Player;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 
@@ -169,7 +173,7 @@ public class GameScreen extends ScreenAdapter {
                 @Override
                 public void run() {
                     //IA Logic taking a card
-                    int cardIndex = Utils.getRandomNumberInRange(0, 2);
+                    int cardIndex = Utils.getRandomNumberInRange(0, turn.getCards().size());
                     Card card = turn.getCards().get(cardIndex);
                     turn.setSelectedCard(card);
                     card.setSelected(true);
@@ -231,7 +235,7 @@ public class GameScreen extends ScreenAdapter {
                 @Override
                 public void run() {
                     //Start new turn
-                    for(Player player : players){
+                    for (Player player : players) {
                         Card card = player.getSelectedCard();
                         player.getCards().remove(card);
                         if (deck.moreCards()) {
@@ -243,11 +247,35 @@ public class GameScreen extends ScreenAdapter {
                     roundEnded = false;
                     thinking = false;
                 }
-            },3);
+            }, 3);
 
 
         } else {
             updateNotificationLabel("Game is done!");
+
+            Timer.schedule(new Timer.Task() {
+                @Override
+                public void run() {
+                    //Looking for the winner
+                    Player max = Collections.max(Arrays.asList(players), new Comparator<Player>() {
+
+                        public int compare(Player o1, Player o2) {
+                            return Integer.compare(o1.getPoints(), o2.getPoints());
+                        }
+                    });
+                    updateNotificationLabel("Winner is " + max.getName());
+
+                    Timer.schedule(new Timer.Task() {
+                        @Override
+                        public void run() {
+                            //Go to menu again
+                            app.setScreen(new MenuScreen(app));
+                        }
+                    }, 3);
+
+                }
+            }, 3);
+
         }
 
     }
@@ -280,56 +308,30 @@ public class GameScreen extends ScreenAdapter {
         app.batch.draw(Assets.background, 0, 0, App.WIDTH, App.HEIGHT);
         app.batch.end();
 
-        List<Sprite> sprites = new ArrayList();
-        sprites.add(getSpriteSouth(players[0].getCards().get(0), -50));
-        sprites.add(getSpriteSouth(players[0].getCards().get(1), 0));
-        sprites.add(getSpriteSouth(players[0].getCards().get(2), 50));
-
-        sprites.add(getSpriteWest(players[1].getCards().get(0), -50));
-        sprites.add(getSpriteWest(players[1].getCards().get(1), 0));
-        sprites.add(getSpriteWest(players[1].getCards().get(2), 50));
-
-        sprites.add(getSpriteNorth(players[2].getCards().get(0), -50));
-        sprites.add(getSpriteNorth(players[2].getCards().get(1), 0));
-        sprites.add(getSpriteNorth(players[2].getCards().get(2), 50));
-
-        sprites.add(getSpriteEst(players[3].getCards().get(0), -50));
-        sprites.add(getSpriteEst(players[3].getCards().get(1), 0));
-        sprites.add(getSpriteEst(players[3].getCards().get(2), 50));
-
         app.batch.begin();
         app.batch.draw(Assets.cardBack, Deck.position.x, Deck.position.y, Deck.position.width, Deck.position.height);
         app.batch.draw(triunfalCard.getImage(), Deck.position.x + 50, Deck.position.y, Deck.position.width, Deck.position.height);
-
-
-        for (Sprite sprite : sprites) {
-            sprite.draw(app.batch);
-        }
-
+        drawCards();
         app.batch.end();
 
         stage.draw();
         stage2.draw();
     }
 
-    private Sprite getSpriteSouth(Card card, float x) {
-        int y = 0;
-        if (card.isSelected()) {
-            y = 50;
+    private void drawCards() {
+        for (Player player : players) {
+            for (int i = 0; i < player.getCards().size(); i++) {
+                Card card = player.getCards().get(i);
+                float extra = -50 + i * 50;
+                Location location = player.getLocation();
+                float extraX = location.isHorizontal() ? extra : 0;
+                float extraY = !location.isHorizontal() ? extra : 0;
+                extraY += player.isMainPlayer() && card.isSelected() ? 50 : 0;
+                Sprite sprite = getSprite(card.getImage(), location.getX() + extraX, location.getY() + extraY, location.getRotate());
+
+                sprite.draw(app.batch);
+            }
         }
-        return getSprite(card.getImage(), App.WIDTH / 2 - Card.CARD_WIDTH / 2 + x, y, 0);
-    }
-
-    private Sprite getSpriteNorth(Card card, float x) {
-        return getSprite(card.getImage(), App.WIDTH / 2 - Card.CARD_WIDTH / 2 + x, App.HEIGHT - Card.CARD_HEIGHT, 180);
-    }
-
-    private Sprite getSpriteWest(Card card, float x) {
-        return getSprite(card.getImage(), Card.CARD_WIDTH / 2, App.HEIGHT / 2 - Card.CARD_HEIGHT / 2 + x, 270);
-    }
-
-    private Sprite getSpriteEst(Card card, float x) {
-        return getSprite(card.getImage(), App.WIDTH - Card.CARD_WIDTH / 2 * 3, App.HEIGHT / 2 - Card.CARD_HEIGHT / 2 + x, 90);
     }
 
     private Sprite getSprite(TextureRegion image, float x, float y, int rotate) {

@@ -17,11 +17,12 @@ public class Player {
     private int points;
     private Label pointsLabel;
 
-    private Player nextPlayer;
+    private Location location;
 
-    public Player(String name, boolean mainPlayer) {
+    public Player(String name, boolean mainPlayer, Location location) {
         this.name = name;
         this.mainPlayer = mainPlayer;
+        this.location = location;
         this.cards = new ArrayList<Card>();
 
         BitmapFont font = new BitmapFont();
@@ -62,5 +63,13 @@ public class Player {
 
     public boolean isMainPlayer() {
         return mainPlayer;
+    }
+
+    public int getPoints() {
+        return points;
+    }
+
+    public Location getLocation() {
+        return location;
     }
 }
