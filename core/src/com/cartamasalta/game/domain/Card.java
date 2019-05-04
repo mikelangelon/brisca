@@ -12,8 +12,7 @@ public class Card {
     private CardType type;
     private TextureRegion image = Assets.cardBack;
     private Player owner;
-
-    public Card() {}
+    private boolean selected;
 
     public Card(TextureRegion image, CardType type, int value) {
         this.image = image;
@@ -22,7 +21,11 @@ public class Card {
     }
 
     public TextureRegion getImage() {
-        return image;
+        if (isVisible()) {
+            return image;
+        } else {
+            return Assets.cardBack;
+        }
     }
 
     public int getValue() {
@@ -35,5 +38,21 @@ public class Card {
 
     public void setOwner(Player owner) {
         this.owner = owner;
+    }
+
+    public boolean isSelected() {
+        return selected;
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
+    }
+
+    public boolean isVisible() {
+        return owner == null || selected || owner.isMainPlayer();
+    }
+
+    public CardType getType() {
+        return type;
     }
 }

@@ -19,15 +19,18 @@ public class Deck {
     int counter = 0;
     final ArrayList<Card> cards = new ArrayList<Card>();
 
-    public Deck(Texture texture){
+    public Deck(Texture texture) {
         initDeck(texture);
     }
 
     public void initDeck(Texture texture) {
         for (int type = 0; type < 4; type++) {
             for (int i = 0; i < 12; i++) {
-                TextureRegion image = new TextureRegion(texture, i  * 208, type * 319, 208, 319);
-                Card card = new Card(image, CardType.values()[type], i);
+                if (i == 7 || i == 8) {
+                    continue;
+                }
+                TextureRegion image = new TextureRegion(texture, i * 208, type * 319, 208, 319);
+                Card card = new Card(image, CardType.values()[type], i + 1);
 
                 cards.add(card);
             }
@@ -48,6 +51,10 @@ public class Deck {
         Card card = cards.get(counter);
         counter++;
         return card;
+    }
+
+    public boolean moreCards() {
+        return cards.size() > counter;
     }
 
     public int getCounter() {

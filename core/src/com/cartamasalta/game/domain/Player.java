@@ -10,24 +10,24 @@ import java.util.List;
 
 public class Player {
     private String name;
-    private boolean you;
+    private boolean mainPlayer;
     private List<Card> cards;
+    private Card selectedCard;
+
     private int points;
     private Label pointsLabel;
 
-    public Player(String name, boolean you) {
+    private Player nextPlayer;
+
+    public Player(String name, boolean mainPlayer) {
         this.name = name;
-        this.you = you;
+        this.mainPlayer = mainPlayer;
         this.cards = new ArrayList<Card>();
 
         BitmapFont font = new BitmapFont();
         font.getData().setScale(1);
         Label label = new Label(name + ": 0", new Label.LabelStyle(font, Color.WHITE));
         this.pointsLabel = label;
-    }
-
-    public void setCards(List<Card> card) {
-        this.cards = card;
     }
 
     public List<Card> getCards() {
@@ -50,5 +50,17 @@ public class Player {
 
     public Label getPointsLabel() {
         return pointsLabel;
+    }
+
+    public Card getSelectedCard() {
+        return selectedCard;
+    }
+
+    public void setSelectedCard(Card selectedCard) {
+        this.selectedCard = selectedCard;
+    }
+
+    public boolean isMainPlayer() {
+        return mainPlayer;
     }
 }

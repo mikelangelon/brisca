@@ -22,7 +22,6 @@ import com.cartamasalta.game.domain.Player;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 
 public class GameScreen extends ScreenAdapter {
@@ -33,6 +32,7 @@ public class GameScreen extends ScreenAdapter {
     private final Player[] players;
     private final Vector3 touchPoint = new Vector3();
 
+    private Player turnStarter;
     private Player turn;
 
     private Card triunfalCard;
@@ -41,7 +41,6 @@ public class GameScreen extends ScreenAdapter {
     //Testing
     private boolean thinking = false;
     private boolean roundEnded = false;
-    private List<Card> selectedCards = new ArrayList<Card>();
     private Stage stage;
     private Stage stage2;
     private Label notificationLabel;
@@ -63,6 +62,7 @@ public class GameScreen extends ScreenAdapter {
         players = GameUtils.getPlayers();
 
         triunfalCard = deck.takeCard();
+        System.out.println("triunfal Card is " + triunfalCard.getType());
         for (int i = 0; i < 3; i++) {
             players[0].addCard(deck.takeCard());
             players[1].addCard(deck.takeCard());
@@ -71,7 +71,7 @@ public class GameScreen extends ScreenAdapter {
         }
 
         turn = players[0];
-
+        turnStarter = turn;
         //labels[0]=
         FitViewport viewport = new FitViewport(App.WIDTH, App.HEIGHT, guiCam);
         stage = new Stage(viewport, app.batch);
@@ -107,18 +107,25 @@ public class GameScreen extends ScreenAdapter {
         updateNotificationLabel("You can start the round");
     }
 
-    private Player nextTurn() {
+    private Player nextPlayer(Player from) {
         boolean found = false;
         for (Player player : players) {
             if (found) {
                 return player;
             }
-            if (turn == player) {
+            if (from == player) {
                 found = true;
             }
         }
-        roundEnded = true;
         return players[0];
+    }
+
+    private Player nextTurn() {
+        Player player = nextPlayer(turn);
+        if (player.equals(turnStarter)) {
+            roundEnded = true;
+        }
+        return player;
     }
 
     @Override
@@ -134,17 +141,22 @@ public class GameScreen extends ScreenAdapter {
         }
         if (Gdx.input.justTouched() && turn == players[0]) {
             guiCam.unproject(touchPoint.set(Gdx.input.getX(), Gdx.input.getY(), 0));
+            Card selectedCard = null;
             if (getRectangle(-50).contains(touchPoint.x, touchPoint.y)) {
-                selectedCards.add(players[0].getCards().get(0));
-                turn = nextTurn();
+                selectedCard = players[0].getCards().get(0);
             } else if (getRectangle(0).contains(touchPoint.x, touchPoint.y)) {
-                selectedCards.add(players[0].getCards().get(1));
-                turn = nextTurn();
+                selectedCard = players[0].getCards().get(1);
             } else if (getRectangle(50).contains(touchPoint.x, touchPoint.y)) {
-                selectedCards.add(players[0].getCards().get(2));
-                turn = nextTurn();
+                selectedCard = players[0].getCards().get(2);
             }
+            if (selectedCard != null) {
+                turn = nextTurn();
+                players[0].setSelectedCard(selectedCard);
+                selectedCard.setSelected(true);
+            }
+
             updateNotificationLabel("");
+
         }
         logicAI();
     }
@@ -156,8 +168,10 @@ public class GameScreen extends ScreenAdapter {
                 @Override
                 public void run() {
                     //IA Logic taking a card
-                    int card = Utils.getRandomNumberInRange(0, 2);
-                    selectedCards.add(turn.getCards().get(card));
+                    int cardIndex = Utils.getRandomNumberInRange(0, 2);
+                    Card card = turn.getCards().get(cardIndex);
+                    turn.setSelectedCard(card);
+                    card.setSelected(true);
                     turn = nextTurn();
                     thinking = false;
                 }
@@ -166,32 +180,64 @@ public class GameScreen extends ScreenAdapter {
     }
 
 
-    private void calculateRound() {
-        Card winner = selectedCards.get(0);
-        int points = 0;
-        for (Player player : players) {
-            for (Card card : selectedCards) {
-                if (!card.getOwner().equals(player)) {
-                    continue;
-                }
-                if (winner.getValue() < card.getValue()) {
-                    winner = card;
-                }
-                System.out.println(card.getOwner().getName() + "Card " + card.getValue());
-                points += card.getValue();
-                player.getCards().remove(card);
-                player.addCard(deck.takeCard());
-            }
+    private Card getWinnerCard(Card card1, Card card2) {
+        if (card1.getType().equals(triunfalCard.getType()) &&
+                !card2.getType().equals(triunfalCard.getType())) {
+            return card1;
         }
+        if (!card1.getType().equals(triunfalCard.getType()) &&
+                card2.getType().equals(triunfalCard.getType())) {
+            return card2;
+        }
+        if (!card1.getType().equals(card2.getType())) {
+            return card1;
+        }
+
+        if (ValueMapper.getValue(card1) > ValueMapper.getValue(card2)) {
+            return card1;
+        }
+        return card2;
+    }
+
+    private void calculateRound() {
+        Card winner = turn.getSelectedCard();
+        Player current = turn;
+        int points = 0;
+        do {
+            Card card = current.getSelectedCard();
+            System.out.println("Card by " + card.getOwner().getName() + " " + card.getType() + " " + card.getValue());
+            System.out.println("Winner " + winner.getValue() + " " + winner.getType() + " Vs " + " Card " + card.getValue() + " " + card.getType());
+            winner = getWinnerCard(winner, card);
+            System.out.println("Wins " + winner.getValue() + " " + winner.getType());
+            points += ValueMapper.getPoints(card);
+
+            current.getCards().remove(card);
+            if (deck.moreCards()) {
+                current.addCard(deck.takeCard());
+            } else {
+                current.addCard(triunfalCard);
+            }
+            current = nextPlayer(current);
+        } while (!current.equals(turn));
+
         notificationLabel.setText(winner.getOwner().getName() + " wins the round");
         notificationLabel.setPosition(App.WIDTH / 2 - notificationLabel.getWidth() / 2, App.HEIGHT / 2 - 100);
         updateNotificationLabel(winner.getOwner().getName() + " wins the round!");
         System.out.println("Winner" + winner.getOwner().getName() + " " + points);
         winner.getOwner().addPoints(points);
         System.out.println("Remaining cards " + deck.getCounter());
-        selectedCards.clear();
-        roundEnded = false;
-        thinking = false;
+        System.out.println("New round");
+
+        if (deck.moreCards()) {
+            turn = winner.getOwner();
+            turnStarter = turn;
+
+            roundEnded = false;
+            thinking = false;
+        } else {
+            updateNotificationLabel("Game is done!");
+        }
+
     }
 
     private void checkEndRound() {
@@ -205,6 +251,10 @@ public class GameScreen extends ScreenAdapter {
                 calculateRound();
             }
         }, Utils.getRandomNumberInRange(1, 10));
+    }
+
+    private void checkEndGame() {
+
     }
 
     private void draw() {
@@ -239,6 +289,7 @@ public class GameScreen extends ScreenAdapter {
         app.batch.draw(Assets.cardBack, Deck.position.x, Deck.position.y, Deck.position.width, Deck.position.height);
         app.batch.draw(triunfalCard.getImage(), Deck.position.x + 50, Deck.position.y, Deck.position.width, Deck.position.height);
 
+
         for (Sprite sprite : sprites) {
             sprite.draw(app.batch);
         }
@@ -251,34 +302,22 @@ public class GameScreen extends ScreenAdapter {
 
     private Sprite getSpriteSouth(Card card, float x) {
         int y = 0;
-        if (isSelectedCard(card)) {
+        if (card.isSelected()) {
             y = 50;
         }
         return getSprite(card.getImage(), App.WIDTH / 2 - Card.CARD_WIDTH / 2 + x, y, 0);
     }
 
     private Sprite getSpriteNorth(Card card, float x) {
-        TextureRegion image = Assets.cardBack;
-        if (isSelectedCard(card)) {
-            image = card.getImage();
-        }
-        return getSprite(image, App.WIDTH / 2 - Card.CARD_WIDTH / 2 + x, App.HEIGHT - Card.CARD_HEIGHT, 180);
+        return getSprite(card.getImage(), App.WIDTH / 2 - Card.CARD_WIDTH / 2 + x, App.HEIGHT - Card.CARD_HEIGHT, 180);
     }
 
     private Sprite getSpriteWest(Card card, float x) {
-        TextureRegion image = Assets.cardBack;
-        if (isSelectedCard(card)) {
-            image = card.getImage();
-        }
-        return getSprite(image, Card.CARD_WIDTH / 2, App.HEIGHT / 2 - Card.CARD_HEIGHT / 2 + x, 270);
+        return getSprite(card.getImage(), Card.CARD_WIDTH / 2, App.HEIGHT / 2 - Card.CARD_HEIGHT / 2 + x, 270);
     }
 
     private Sprite getSpriteEst(Card card, float x) {
-        TextureRegion image = Assets.cardBack;
-        if (isSelectedCard(card)) {
-            image = card.getImage();
-        }
-        return getSprite(image, App.WIDTH - Card.CARD_WIDTH / 2 * 3, App.HEIGHT / 2 - Card.CARD_HEIGHT / 2 + x, 90);
+        return getSprite(card.getImage(), App.WIDTH - Card.CARD_WIDTH / 2 * 3, App.HEIGHT / 2 - Card.CARD_HEIGHT / 2 + x, 90);
     }
 
     private Sprite getSprite(TextureRegion image, float x, float y, int rotate) {
@@ -297,13 +336,6 @@ public class GameScreen extends ScreenAdapter {
                 0,
                 Card.CARD_WIDTH,
                 Card.CARD_HEIGHT);
-    }
-
-    private boolean isSelectedCard(Card card) {
-        if (selectedCards.contains(card)) {
-            return true;
-        }
-        return false;
     }
 
 
