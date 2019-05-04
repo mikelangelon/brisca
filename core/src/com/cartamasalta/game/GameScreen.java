@@ -139,6 +139,7 @@ public class GameScreen extends ScreenAdapter {
         if (roundEnded) {
             return;
         }
+        updateNotificationLabel(turn.getName() + " turn");
         if (Gdx.input.justTouched() && turn == players[0]) {
             guiCam.unproject(touchPoint.set(Gdx.input.getX(), Gdx.input.getY(), 0));
             Card selectedCard = null;
@@ -211,12 +212,6 @@ public class GameScreen extends ScreenAdapter {
             System.out.println("Wins " + winner.getValue() + " " + winner.getType());
             points += ValueMapper.getPoints(card);
 
-            current.getCards().remove(card);
-            if (deck.moreCards()) {
-                current.addCard(deck.takeCard());
-            } else {
-                current.addCard(triunfalCard);
-            }
             current = nextPlayer(current);
         } while (!current.equals(turn));
 
@@ -232,8 +227,25 @@ public class GameScreen extends ScreenAdapter {
             turn = winner.getOwner();
             turnStarter = turn;
 
-            roundEnded = false;
-            thinking = false;
+            Timer.schedule(new Timer.Task() {
+                @Override
+                public void run() {
+                    //Start new turn
+                    for(Player player : players){
+                        Card card = player.getSelectedCard();
+                        player.getCards().remove(card);
+                        if (deck.moreCards()) {
+                            player.addCard(deck.takeCard());
+                        } else {
+                            player.addCard(triunfalCard);
+                        }
+                    }
+                    roundEnded = false;
+                    thinking = false;
+                }
+            },3);
+
+
         } else {
             updateNotificationLabel("Game is done!");
         }
